@@ -1,7 +1,85 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { TYPE_OPTIONS } from '../../lib/constants'
-import { XIcon } from 'lucide-react'
+import { searchPlaces } from '../../lib/geocode'
+import { XIcon, MapPinIcon, SearchIcon } from 'lucide-react'
+
+function PlaceSearch({ onSelect }) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState([])
+  const [searching, setSearching] = useState(false)
+  const [open, setOpen] = useState(false)
+  const timer = useRef(null)
+  const wrapRef = useRef(null)
+
+  useEffect(() => {
+    clearTimeout(timer.current)
+    if (query.trim().length < 2) { setResults([]); setOpen(false); return }
+    setSearching(true)
+    timer.current = setTimeout(async () => {
+      const data = await searchPlaces(query).catch(() => [])
+      setResults(data)
+      setOpen(data.length > 0)
+      setSearching(false)
+    }, 400)
+    return () => clearTimeout(timer.current)
+  }, [query])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handle(e) { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [])
+
+  function pick(place) {
+    onSelect({
+      name: place.name || place.display_name.split(',')[0],
+      lat: parseFloat(place.lat),
+      lng: parseFloat(place.lon),
+      display: place.display_name,
+    })
+    setQuery('')
+    setOpen(false)
+    setResults([])
+  }
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <div className="relative">
+        <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onFocus={() => results.length > 0 && setOpen(true)}
+          placeholder="Search place name… (e.g. Senso-ji, Shibuya)"
+          className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+        />
+        {searching && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">…</span>
+        )}
+      </div>
+      {open && (
+        <ul className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+          {results.map(place => (
+            <li key={place.place_id}>
+              <button
+                type="button"
+                onClick={() => pick(place)}
+                className="w-full text-left px-3 py-2.5 hover:bg-red-50 text-sm border-b border-gray-50 last:border-0"
+              >
+                <div className="font-medium text-gray-800 truncate">
+                  {place.name || place.display_name.split(',')[0]}
+                </div>
+                <div className="text-xs text-gray-400 truncate mt-0.5">{place.display_name}</div>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 export default function ActivityForm({ activity, planId, onSaved, onClose }) {
   const [form, setForm] = useState({
@@ -10,8 +88,9 @@ export default function ActivityForm({ activity, planId, onSaved, onClose }) {
     type: activity?.type || 'attraction',
     note: activity?.note || '',
     price_jpy: activity?.price_jpy ?? '',
-    lat: activity?.lat ?? '',
-    lng: activity?.lng ?? '',
+    lat: activity?.lat ?? null,
+    lng: activity?.lng ?? null,
+    locationName: activity?.lat ? 'Location set' : '',
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -19,6 +98,20 @@ export default function ActivityForm({ activity, planId, onSaved, onClose }) {
   const priceRequired = form.type === 'restaurant'
 
   function set(field, val) { setForm(f => ({ ...f, [field]: val })) }
+
+  function onPlaceSelect(place) {
+    setForm(f => ({
+      ...f,
+      title: f.title || place.name,
+      lat: place.lat,
+      lng: place.lng,
+      locationName: place.name,
+    }))
+  }
+
+  function clearLocation() {
+    setForm(f => ({ ...f, lat: null, lng: null, locationName: '' }))
+  }
 
   async function submit(e) {
     e.preventDefault()
@@ -34,8 +127,8 @@ export default function ActivityForm({ activity, planId, onSaved, onClose }) {
       type: form.type,
       note: form.note || null,
       price_jpy: form.price_jpy !== '' ? Number(form.price_jpy) : null,
-      lat: form.lat !== '' ? Number(form.lat) : null,
-      lng: form.lng !== '' ? Number(form.lng) : null,
+      lat: form.lat ?? null,
+      lng: form.lng ?? null,
     }
     if (activity) {
       const { data, error: err } = await supabase
@@ -58,8 +151,20 @@ export default function ActivityForm({ activity, planId, onSaved, onClose }) {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><XIcon size={20} /></button>
         </div>
         <form onSubmit={submit} className="p-5 flex flex-col gap-4">
+
+          {/* Place search */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Search place <span className="text-gray-400 font-normal">(auto-fills name + pin)</span>
+            </label>
+            <PlaceSearch onSelect={onPlaceSelect} />
+          </div>
+
+          {/* Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Name <span className="text-red-500">*</span>
+            </label>
             <input
               required value={form.title}
               onChange={e => set('title', e.target.value)}
@@ -67,6 +172,8 @@ export default function ActivityForm({ activity, planId, onSaved, onClose }) {
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
             />
           </div>
+
+          {/* Time + Type */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
@@ -89,6 +196,8 @@ export default function ActivityForm({ activity, planId, onSaved, onClose }) {
               </select>
             </div>
           </div>
+
+          {/* Price */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Price (¥) {priceRequired && <span className="text-red-500">*</span>}
@@ -101,6 +210,8 @@ export default function ActivityForm({ activity, planId, onSaved, onClose }) {
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
             />
           </div>
+
+          {/* Note */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
             <textarea
@@ -110,24 +221,25 @@ export default function ActivityForm({ activity, planId, onSaved, onClose }) {
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
             />
           </div>
+
+          {/* Location status */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Location (lat, lng)</label>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="number" step="any" value={form.lat}
-                onChange={e => set('lat', e.target.value)}
-                placeholder="35.6762"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
-              />
-              <input
-                type="number" step="any" value={form.lng}
-                onChange={e => set('lng', e.target.value)}
-                placeholder="139.6503"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
-              />
-            </div>
-            <p className="text-xs text-gray-400 mt-1">Tip: right-click a place in Google Maps → copy coordinates</p>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Map pin</label>
+            {form.lat != null ? (
+              <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                <MapPinIcon size={14} className="text-green-600 shrink-0" />
+                <span className="text-sm text-green-700 flex-1 truncate">{form.locationName || `${form.lat.toFixed(4)}, ${form.lng.toFixed(4)}`}</span>
+                <button type="button" onClick={clearLocation} className="text-gray-400 hover:text-red-500">
+                  <XIcon size={14} />
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 bg-gray-50 border border-dashed border-gray-200 rounded-lg px-3 py-2">
+                No pin — search a place above to set one automatically
+              </p>
+            )}
           </div>
+
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <button
             type="submit" disabled={saving}
