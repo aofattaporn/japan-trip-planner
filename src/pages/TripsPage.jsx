@@ -158,49 +158,47 @@ export default function TripsPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {trips.map(trip => (
-              {(() => {
-                const isOwner = trip.user_id === user?.id
-                return (
-                  <div
-                    key={trip.id}
-                    onClick={() => navigate(`/trips/${trip.id}`)}
-                    className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 cursor-pointer hover:border-red-200 hover:shadow-md transition group"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h2 className="font-semibold text-gray-800 text-lg group-hover:text-red-600 transition truncate">{trip.name}</h2>
-                          {!isOwner && (
-                            <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 font-medium">Shared</span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-500 mt-0.5">
-                          {format(parseISO(trip.start_date), 'MMM d')} – {format(parseISO(trip.end_date), 'MMM d, yyyy')}
-                          <span className="ml-2 text-gray-400">· {nights(trip)} nights</span>
-                        </p>
+            {trips.map(trip => {
+              const isOwner = trip.user_id === user?.id
+              return (
+                <div
+                  key={trip.id}
+                  onClick={() => navigate(`/trips/${trip.id}`)}
+                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 cursor-pointer hover:border-red-200 hover:shadow-md transition group"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h2 className="font-semibold text-gray-800 text-lg group-hover:text-red-600 transition truncate">{trip.name}</h2>
+                        {!isOwner && (
+                          <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 font-medium">Shared</span>
+                        )}
                       </div>
-                      {isOwner && (
-                        <div className="flex gap-1 shrink-0">
-                          <button
-                            onClick={e => openEdit(trip, e)}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
-                          >
-                            <PencilIcon size={15} />
-                          </button>
-                          <button
-                            onClick={e => deleteTrip(trip.id, e)}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition"
-                          >
-                            <TrashIcon size={15} />
-                          </button>
-                        </div>
-                      )}
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        {format(parseISO(trip.start_date), 'MMM d')} – {format(parseISO(trip.end_date), 'MMM d, yyyy')}
+                        <span className="ml-2 text-gray-400">· {nights(trip)} nights</span>
+                      </p>
                     </div>
+                    {isOwner && (
+                      <div className="flex gap-1 shrink-0">
+                        <button
+                          onClick={e => openEdit(trip, e)}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                        >
+                          <PencilIcon size={15} />
+                        </button>
+                        <button
+                          onClick={e => deleteTrip(trip.id, e)}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition"
+                        >
+                          <TrashIcon size={15} />
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )
-              })()}
-            ))}
+                </div>
+              )
+            })}
           </div>
         )}
       </main>
