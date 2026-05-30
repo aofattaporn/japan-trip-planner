@@ -22,20 +22,26 @@ export default function TripDetailPage() {
 
   // Load trip + days + plans
   useEffect(() => {
+    let cancelled = false
+
     async function init() {
       setLoading(true)
 
       const { data: tripData } = await supabase
         .from('trips').select('*').eq('id', tripId).single()
+      if (cancelled) return
       if (!tripData) { navigate('/'); return }
       setTrip(tripData)
 
-      // Fetch existing days
+      // Fetch existing days — use explicit FK hint to avoid PostgREST ambiguity
+      // (days has two FKs to/from plans: active_plan_id→plans.id and plans.day_id→days.id)
       const { data: existingDays } = await supabase
         .from('days')
-        .select('*, plans(*)')
+        .select('*, plans!day_id(*)')
         .eq('trip_id', tripId)
         .order('date', { ascending: true })
+
+      if (cancelled) return
 
       const dateRange = eachDayOfInterval({
         start: parseISO(tripData.start_date),
@@ -50,12 +56,24 @@ export default function TripDetailPage() {
         if (found) {
           builtDays.push({ ...found, plans: found.plans || [] })
         } else {
-          // Create day
-          const { data: newDay } = await supabase
+          // Create day; if unique constraint fires (concurrent init), fetch the winner
+          const { data: newDay, error: dayErr } = await supabase
             .from('days')
             .insert({ trip_id: tripId, date: dateStr })
             .select()
             .single()
+
+          if (dayErr) {
+            const { data: existing } = await supabase
+              .from('days')
+              .select('*, plans!day_id(*)')
+              .eq('trip_id', tripId)
+              .eq('date', dateStr)
+              .single()
+            if (existing) builtDays.push({ ...existing, plans: existing.plans || [] })
+            continue
+          }
+
           // Create default Plan A
           const { data: newPlan } = await supabase
             .from('plans')
@@ -71,10 +89,14 @@ export default function TripDetailPage() {
         }
       }
 
-      setDays(builtDays)
-      setLoading(false)
+      if (!cancelled) {
+        setDays(builtDays)
+        setLoading(false)
+      }
     }
+
     init()
+    return () => { cancelled = true }
   }, [tripId])
 
   const selectedDay = days[selectedDayIdx]
