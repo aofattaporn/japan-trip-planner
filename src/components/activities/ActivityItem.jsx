@@ -12,7 +12,7 @@ export default function ActivityItem({ activity, onEdit, onDeleted }) {
   }
 
   return (
-    <div className="flex items-start gap-3 py-3 px-4 border-b border-gray-100 last:border-0 hover:bg-gray-50 group">
+    <div className="flex items-center gap-3 py-3 px-4 border-b border-gray-100 last:border-0">
       {/* Time */}
       <div className="w-12 shrink-0 text-right">
         <span className="text-xs text-gray-400 font-mono">
@@ -21,7 +21,7 @@ export default function ActivityItem({ activity, onEdit, onDeleted }) {
       </div>
 
       {/* Emoji type */}
-      <span className="text-lg leading-none mt-0.5 shrink-0">{meta.emoji}</span>
+      <span className="text-lg leading-none shrink-0">{meta.emoji}</span>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
@@ -29,7 +29,7 @@ export default function ActivityItem({ activity, onEdit, onDeleted }) {
         {activity.note && (
           <p className="text-xs text-gray-400 mt-0.5 truncate">{activity.note}</p>
         )}
-        {(activity.lat && activity.lng) && (
+        {activity.lat && activity.lng && (
           <span className="inline-flex items-center gap-0.5 text-xs text-blue-400 mt-0.5">
             <MapPinIcon size={10} /> pinned
           </span>
@@ -43,12 +43,18 @@ export default function ActivityItem({ activity, onEdit, onDeleted }) {
         </span>
       )}
 
-      {/* Actions */}
-      <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition">
-        <button onClick={onEdit} className="p-1 rounded text-gray-400 hover:text-blue-600">
+      {/* Actions — always visible for touch */}
+      <div className="flex gap-1 shrink-0">
+        <button
+          onClick={onEdit}
+          className="p-2 rounded-lg text-blue-500 active:bg-blue-100 transition"
+        >
           <PencilIcon size={14} />
         </button>
-        <button onClick={del} className="p-1 rounded text-gray-400 hover:text-red-500">
+        <button
+          onClick={del}
+          className="p-2 rounded-lg text-red-400 active:bg-red-100 transition"
+        >
           <TrashIcon size={14} />
         </button>
       </div>

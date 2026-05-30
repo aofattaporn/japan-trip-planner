@@ -159,41 +159,48 @@ export default function TripsPage() {
             {trips.map(trip => {
               const isOwner = trip.user_id === user?.id
               return (
-                <div key={trip.id} className="relative bg-white rounded-xl shadow-sm border border-gray-100 hover:border-red-200 hover:shadow-md transition">
-                  {/* Nav area — full card minus right gutter for owner buttons */}
-                  <button
-                    onClick={() => navigate(`/trips/${trip.id}`)}
-                    className={`w-full text-left p-4 ${isOwner ? 'pr-24' : 'pr-4'}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <h2 className="font-semibold text-gray-800 text-lg truncate">{trip.name}</h2>
-                      {!isOwner && (
-                        <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 font-medium">Shared</span>
-                      )}
+                <div key={trip.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                  {/* Info */}
+                  <div className="flex items-start gap-2 mb-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="font-semibold text-gray-800 text-lg truncate">{trip.name}</h2>
+                        {!isOwner && (
+                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 font-medium">Shared</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        {format(parseISO(trip.start_date), 'MMM d')} – {format(parseISO(trip.end_date), 'MMM d, yyyy')}
+                        <span className="ml-2 text-gray-400">· {nights(trip)} nights</span>
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-500 mt-0.5">
-                      {format(parseISO(trip.start_date), 'MMM d')} – {format(parseISO(trip.end_date), 'MMM d, yyyy')}
-                      <span className="ml-2 text-gray-400">· {nights(trip)} nights</span>
-                    </p>
-                  </button>
+                  </div>
 
-                  {/* Owner actions — absolutely positioned, never overlap the nav button */}
-                  {isOwner && (
-                    <div className="absolute top-1/2 right-3 -translate-y-1/2 flex gap-1">
-                      <button
-                        onClick={() => openEdit(trip)}
-                        className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 transition"
-                      >
-                        <PencilIcon size={16} />
-                      </button>
-                      <button
-                        onClick={() => deleteTrip(trip.id)}
-                        className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 active:bg-red-100 transition"
-                      >
-                        <TrashIcon size={16} />
-                      </button>
-                    </div>
-                  )}
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-3 border-t border-gray-100">
+                    <button
+                      onClick={() => navigate(`/trips/${trip.id}`)}
+                      className="flex-1 bg-red-600 text-white text-sm font-semibold py-2 rounded-lg active:bg-red-700 transition"
+                    >
+                      Open trip
+                    </button>
+                    {isOwner && (
+                      <>
+                        <button
+                          onClick={() => openEdit(trip)}
+                          className="px-3 py-2 rounded-lg border border-gray-200 text-gray-600 active:bg-gray-100 transition"
+                        >
+                          <PencilIcon size={16} />
+                        </button>
+                        <button
+                          onClick={() => deleteTrip(trip.id)}
+                          className="px-3 py-2 rounded-lg border border-gray-200 text-gray-600 active:bg-red-50 active:text-red-600 transition"
+                        >
+                          <TrashIcon size={16} />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               )
             })}
