@@ -4,7 +4,60 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import TripForm from '../components/trips/TripForm'
 import { format, parseISO } from 'date-fns'
-import { PlusIcon, PencilIcon, TrashIcon, LogOutIcon } from 'lucide-react'
+import { PlusIcon, PencilIcon, TrashIcon, LogOutIcon, UserPlusIcon, XIcon } from 'lucide-react'
+
+function JoinTripModal({ onClose, onJoined }) {
+  const [code, setCode] = useState('')
+  const [joining, setJoining] = useState(false)
+  const [error, setError] = useState('')
+
+  async function join(e) {
+    e.preventDefault()
+    setJoining(true)
+    setError('')
+    const { data: tripId, error: err } = await supabase.rpc('join_trip_by_code', {
+      p_code: code.trim().toUpperCase(),
+    })
+    if (err) {
+      setError(err.message.includes('invalid_share_code') ? 'Invalid share code.' : err.message)
+      setJoining(false)
+      return
+    }
+    onJoined(tripId)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-5 py-4 border-b">
+          <h2 className="font-semibold text-gray-800">Join a Trip</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><XIcon size={20} /></button>
+        </div>
+        <form onSubmit={join} className="p-5 flex flex-col gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Share code</label>
+            <input
+              value={code}
+              onChange={e => setCode(e.target.value.toUpperCase())}
+              placeholder="e.g. ABC12345"
+              maxLength={8}
+              autoFocus
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-red-400"
+            />
+          </div>
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+          <button
+            type="submit"
+            disabled={joining || code.trim().length < 4}
+            className="bg-red-600 text-white py-2.5 rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-60"
+          >
+            {joining ? 'Joining…' : 'Join Trip'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
 
 export default function TripsPage() {
   const { user, signOut } = useAuth()
@@ -12,6 +65,7 @@ export default function TripsPage() {
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [joinOpen, setJoinOpen] = useState(false)
   const navigate = useNavigate()
 
   async function loadTrips() {
@@ -63,6 +117,13 @@ export default function TripsPage() {
         </div>
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setJoinOpen(true)}
+            className="flex items-center gap-1 bg-red-700 text-white font-semibold px-3 py-1.5 rounded-lg text-sm hover:bg-red-800 transition"
+          >
+            <UserPlusIcon size={16} />
+            Join
+          </button>
+          <button
             onClick={() => { setEditing(null); setFormOpen(true) }}
             className="flex items-center gap-1 bg-white text-red-600 font-semibold px-3 py-1.5 rounded-lg text-sm hover:bg-red-50 transition"
           >
@@ -98,35 +159,47 @@ export default function TripsPage() {
         ) : (
           <div className="flex flex-col gap-3">
             {trips.map(trip => (
-              <div
-                key={trip.id}
-                onClick={() => navigate(`/trips/${trip.id}`)}
-                className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 cursor-pointer hover:border-red-200 hover:shadow-md transition group"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h2 className="font-semibold text-gray-800 text-lg group-hover:text-red-600 transition">{trip.name}</h2>
-                    <p className="text-sm text-gray-500 mt-0.5">
-                      {format(parseISO(trip.start_date), 'MMM d')} – {format(parseISO(trip.end_date), 'MMM d, yyyy')}
-                      <span className="ml-2 text-gray-400">· {nights(trip)} nights</span>
-                    </p>
+              {(() => {
+                const isOwner = trip.user_id === user?.id
+                return (
+                  <div
+                    key={trip.id}
+                    onClick={() => navigate(`/trips/${trip.id}`)}
+                    className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 cursor-pointer hover:border-red-200 hover:shadow-md transition group"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h2 className="font-semibold text-gray-800 text-lg group-hover:text-red-600 transition truncate">{trip.name}</h2>
+                          {!isOwner && (
+                            <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 font-medium">Shared</span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-500 mt-0.5">
+                          {format(parseISO(trip.start_date), 'MMM d')} – {format(parseISO(trip.end_date), 'MMM d, yyyy')}
+                          <span className="ml-2 text-gray-400">· {nights(trip)} nights</span>
+                        </p>
+                      </div>
+                      {isOwner && (
+                        <div className="flex gap-1 shrink-0">
+                          <button
+                            onClick={e => openEdit(trip, e)}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                          >
+                            <PencilIcon size={15} />
+                          </button>
+                          <button
+                            onClick={e => deleteTrip(trip.id, e)}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition"
+                          >
+                            <TrashIcon size={15} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-1 shrink-0">
-                    <button
-                      onClick={e => openEdit(trip, e)}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
-                    >
-                      <PencilIcon size={15} />
-                    </button>
-                    <button
-                      onClick={e => deleteTrip(trip.id, e)}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition"
-                    >
-                      <TrashIcon size={15} />
-                    </button>
-                  </div>
-                </div>
-              </div>
+                )
+              })()}
             ))}
           </div>
         )}
@@ -138,6 +211,13 @@ export default function TripsPage() {
           userId={user?.id}
           onSaved={onSaved}
           onClose={() => { setFormOpen(false); setEditing(null) }}
+        />
+      )}
+
+      {joinOpen && (
+        <JoinTripModal
+          onClose={() => setJoinOpen(false)}
+          onJoined={tripId => { setJoinOpen(false); navigate(`/trips/${tripId}`) }}
         />
       )}
     </div>

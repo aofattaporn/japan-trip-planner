@@ -1,17 +1,20 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { format, parseISO, addDays, eachDayOfInterval } from 'date-fns'
 import DayList from '../components/days/DayList'
 import PlanTabs from '../components/plans/PlanTabs'
 import ActivityList from '../components/activities/ActivityList'
 import BudgetSummary from '../components/budget/BudgetSummary'
 import MapView from '../components/map/MapView'
-import { ArrowLeftIcon, MapIcon, ListIcon } from 'lucide-react'
+import ShareTripModal from '../components/trips/ShareTripModal'
+import { ArrowLeftIcon, MapIcon, ListIcon, Share2Icon } from 'lucide-react'
 
 export default function TripDetailPage() {
   const { tripId } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const [trip, setTrip] = useState(null)
   const [days, setDays] = useState([])    // [{id, date, active_plan_id, plans:[]}]
@@ -19,6 +22,7 @@ export default function TripDetailPage() {
   const [activities, setActivities] = useState([])
   const [loading, setLoading] = useState(true)
   const [mobileTab, setMobileTab] = useState('plan') // 'plan' | 'map'
+  const [shareOpen, setShareOpen] = useState(false)
 
   // Load trip + days + plans
   useEffect(() => {
@@ -203,8 +207,17 @@ export default function TripDetailPage() {
   const tripTotal = dayTotals.reduce((s, d) => s + d.total, 0)
   const todayTotal = allActivities[activePlanId] || 0
 
+  const isOwner = trip?.user_id === user?.id
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      {shareOpen && (
+        <ShareTripModal
+          trip={trip}
+          onClose={() => setShareOpen(false)}
+          onCodeGenerated={code => setTrip(t => ({ ...t, share_code: code }))}
+        />
+      )}
       {/* Header */}
       <header className="bg-red-600 text-white px-4 py-3 flex items-center gap-3 shadow shrink-0">
         <button onClick={() => navigate('/')} className="hover:bg-red-700 p-1 rounded-lg transition">
@@ -216,6 +229,17 @@ export default function TripDetailPage() {
             {format(parseISO(trip.start_date), 'MMM d')} – {format(parseISO(trip.end_date), 'MMM d, yyyy')}
           </p>
         </div>
+        {/* Share button — owner only */}
+        {isOwner && (
+          <button
+            onClick={() => setShareOpen(true)}
+            className="shrink-0 flex items-center gap-1.5 bg-red-700 hover:bg-red-800 text-white px-2.5 py-1.5 rounded-lg text-sm transition"
+            title="Share trip"
+          >
+            <Share2Icon size={15} />
+            <span className="hidden sm:inline">Share</span>
+          </button>
+        )}
         {/* Mobile tab toggle */}
         <div className="flex lg:hidden gap-1 bg-red-700 rounded-lg p-0.5">
           <button

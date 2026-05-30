@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import TripsPage from './pages/TripsPage'
 import TripDetailPage from './pages/TripDetailPage'
+import JoinTripPage from './pages/JoinTripPage'
 import LoginPage from './pages/LoginPage'
 
 function ProtectedRoute({ children }) {
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
           <Route path="/" element={<ProtectedRoute><TripsPage /></ProtectedRoute>} />
           <Route path="/trips/:tripId" element={<ProtectedRoute><TripDetailPage /></ProtectedRoute>} />
+          <Route path="/join/:shareCode" element={<ProtectedRoute><JoinTripPage /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
