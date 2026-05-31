@@ -2,3 +2,6 @@
 
 body { margin: 0; font-family: system-ui, sans-serif; }
 #root { min-height: 100svh; }
+
+/* Prevent iOS from zooming in when tapping input fields */
+input, select, textarea { font-size: max(16px, 1em); }

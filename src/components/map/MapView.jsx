@@ -19,12 +19,10 @@ export default function MapView({ activities }) {
     [activities]
   )
 
+  // Center on activity #1 so the map opens at the start of the day
   const center = useMemo(() => {
     if (mapped.length === 0) return DEFAULT_CENTER
-    return {
-      lat: mapped.reduce((s, a) => s + a.lat, 0) / mapped.length,
-      lng: mapped.reduce((s, a) => s + a.lng, 0) / mapped.length,
-    }
+    return { lat: mapped[0].lat, lng: mapped[0].lng }
   }, [mapped])
 
   // Init map once
